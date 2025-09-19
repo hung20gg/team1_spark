@@ -1,0 +1,6 @@
+boto3
+pyspark
+pandas
+psycopg2-binary
+python-dotenv
+pyarrow

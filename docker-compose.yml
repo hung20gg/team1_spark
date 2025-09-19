@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  master:
+    image: bitnami/spark:4.0
+    environment:
+      - SPARK_MODE=master
+    ports: ["7077:7077", "8080:8080"]
+  worker:
+    image: bitnami/spark:4.0
+    depends_on: [master]
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=4g
+    deploy:
+      replicas: 6
