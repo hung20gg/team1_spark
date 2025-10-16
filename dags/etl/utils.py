@@ -24,3 +24,9 @@ def save_to_s3(df, bucket: str, output_path: str, mode: str = "overwrite"):
     
     df.write.mode(mode).parquet(s3_path)
     logging.info(f"Saved dataframe to {s3_path} with mode={mode}")
+    
+    
+class Parameters:
+    def __init__(self, start_date: str, end_date: str):
+        self.start_date = start_date
+        self.end_date = end_date

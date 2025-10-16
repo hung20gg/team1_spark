@@ -1,10 +1,30 @@
-from airflow import DAG
+from airflow.sdk import DAG, get_current_context
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+from airflow.providers.standard.operators.python import (
+    ExternalPythonOperator,
+    PythonOperator,
+    PythonVirtualenvOperator,
+)
 from datetime import datetime, timedelta
-
 import os
+import sys
 
 DAG_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(DAG_DIR, '..'))
+
+from dags.etl.bronze import (
+    transform_bronze_users,
+    transform_bronze_posts,
+    transform_bronze_comments,
+    transform_bronze_likes,
+)
+
+from dags.etl.silver import (
+    transform_silver_keyword,
+)
+
+
+
 
 default_args = {
     'owner': 'airflow',
@@ -20,39 +40,64 @@ with DAG(
     'social_media_etl',
     default_args=default_args,
     description='Bronze -> Silver -> Gold ETL',
-    # schedule_interval='@daily',
+    start_date=datetime(2025, 1, 1),
     catchup=False,
+    params={
+        "start_date": "2025-01-01",
+        "end_date": "2025-01-31",
+    }
 ) as dag:
+    
+    params = {
+        "start_date": "2025-01-01",
+        "end_date": "2025-01-31",
+    }
+
 
     # Bronze -> Silver tasks
-    bronze_users = SparkSubmitOperator(
+    bronze_users = PythonOperator(
         task_id='transform_bronze_users',
-        application=f'{DAG_DIR}/etl/bronze/bronze_users.py',
-        conn_id='spark_default',
+        python_callable=transform_bronze_users,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
     )
 
-    bronze_posts = SparkSubmitOperator(
+    bronze_posts = PythonOperator(
         task_id='transform_bronze_posts',
-        application=f'{DAG_DIR}/etl/bronze/bronze_posts.py',
-        conn_id='spark_default',
+        python_callable=transform_bronze_posts,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
     )
-    
-    bronze_comments = SparkSubmitOperator(
+
+    bronze_comments = PythonOperator(
         task_id='transform_bronze_comments',
-        application=f'{DAG_DIR}/etl/bronze/bronze_comments.py',
-        conn_id='spark_default',
+        python_callable=transform_bronze_comments,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
     )
-    
-    bronze_likes = SparkSubmitOperator(
+
+    bronze_likes = PythonOperator(
         task_id='transform_bronze_likes',
-        application=f'{DAG_DIR}/etl/bronze/bronze_likes.py',
-        conn_id='spark_default',
+        python_callable=transform_bronze_likes,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
     )
-    
-    silver_keyword = SparkSubmitOperator(
+
+    silver_keyword = PythonOperator(
         task_id='transform_silver_keyword',
-        application=f'{DAG_DIR}/etl/silver/silver_keyword.py',
-        conn_id='spark_default',
+        python_callable=transform_silver_keyword,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
     )
 
 
