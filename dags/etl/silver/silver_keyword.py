@@ -3,11 +3,14 @@ import random
 from pyspark.sql.types import ArrayType, StringType
 from pyspark.sql.functions import udf
 import os
+import sys
+
 from dotenv import load_dotenv
 load_dotenv()
 # ============ INIT SPARK ============
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(current_dir, '..', '..', '..'))
 
 import logging
 logging.basicConfig(
@@ -16,7 +19,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from ..utils import read_from_s3, save_to_s3
+from dags.etl.utils import read_from_s3, save_to_s3
 
 def transform_silver_keyword(start_day, end_day):
 

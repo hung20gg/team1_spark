@@ -7,14 +7,15 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(current_dir, '..', '..', '..'))
+
 from dags.etl.bronze.data_cleaning import (
     DataCleaning,
     print_missing_report,
     print_duplicate_report,
     print_invalid_email_report
 )
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
 
 def transform_bronze_users(start_day, end_day):
     

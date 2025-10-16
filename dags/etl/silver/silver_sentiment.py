@@ -7,11 +7,15 @@ from pyspark.sql import SparkSession
 from pyspark.ml.pipeline import PipelineModel
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator, BinaryClassificationEvaluator
 import os
+import sys
 from dotenv import load_dotenv
 load_dotenv()
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(current_dir, '..', '..', '..'))
 
-from ..utils import read_from_s3, save_to_s3
+
+from dags.etl.utils import read_from_s3, save_to_s3
 # ============ INIT SPARK ============
 
 # TODO: @quoc-khanh @MinhLee - Fix the model to adapt the new data schema. Add cleaning steps for text processing more details
