@@ -1,6 +1,13 @@
 from pyspark.sql import SparkSession, functions as F, Window
 from datetime import date
 from pyspark.sql.functions import broadcast
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+from ..utils import read_from_s3, save_to_s3
+
+## TODO: @huyvu - Implement the Gold transformation logic, using S3 for Airflow
 
 # ===================== INIT SPARK =====================
 spark = (
@@ -8,7 +15,10 @@ spark = (
     .appName("silver_to_gold_final")
     .master("local[*]")
     .config("spark.driver.memory", "8g")
+    .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
+    .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
     .config("spark.sql.shuffle.partitions", "16")
+    .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
     .getOrCreate()
 )
 

@@ -92,3 +92,9 @@ dmypy.json
 
 # Exclude everything except the data folder
 
+airflow.*
+airflow-scheduler.*
+airflow-api_server.*
+airflow-dag-processor.*
+
+logs/

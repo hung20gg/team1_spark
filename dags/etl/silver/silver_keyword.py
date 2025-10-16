@@ -16,22 +16,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-def read_from_s3(spark, bucket, path):
-    s3_path = f"s3a://{bucket}/{path}"
-    df = spark.read.parquet(s3_path)
-    return df
-
-def save_to_s3(df, bucket, output_path, mode="overwrite"):
-    s3_path = f"s3a://{bucket}/{output_path}"
-    
-    total_rows = df.count()
-    target_rows_per_file = 100_000
-    
-    num_partitions = max(1, total_rows // target_rows_per_file)
-    df = df.repartition(num_partitions)
-    
-    df.write.mode(mode).parquet(s3_path)
-    logging.info(f"Saved dataframe to {s3_path} with mode={mode}")
+from ..utils import read_from_s3, save_to_s3
 
 def transform_silver_keyword(start_day, end_day):
 
@@ -56,20 +41,6 @@ def transform_silver_keyword(start_day, end_day):
     # ============ ADD FAKE SENTIMENT ============
     # random sentiment (replace later with actual model inference)
     sentiments = ["positive", "neutral", "negative"]
-
-    posts = posts.withColumn(
-        "sentiment",
-        F.when(F.rand() < 0.33, F.lit("positive"))
-        .when(F.rand() < 0.66, F.lit("neutral"))
-        .otherwise(F.lit("negative"))
-    )
-
-    comments = comments.withColumn(
-        "sentiment",
-        F.when(F.rand() < 0.33, F.lit("positive"))
-        .when(F.rand() < 0.66, F.lit("neutral"))
-        .otherwise(F.lit("negative"))
-    )
 
     # ============ ADD FAKE KEYWORDS ============
     keywords_list = [
