@@ -47,7 +47,7 @@ class DataCleaning:
             .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
             .config("spark.driver.memory", "8g")
             .config("spark.driver.maxResultSize", "2g")
-            .config("spark.sql.shuffle.partitions", "8")
+            .config("spark.sql.shuffle.partitions", "32")
             .config("spark.jars.packages", "org.postgresql:postgresql:42.7.4,org.apache.hadoop:hadoop-aws:3.4.1")
             .getOrCreate()
         )

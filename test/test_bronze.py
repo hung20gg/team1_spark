@@ -53,7 +53,7 @@ def test_transform_bronze_likes():
         assert False
 
 if __name__ == "__main__":
-    # test_transform_bronze_users()
-    # test_transform_bronze_posts()
+    test_transform_bronze_users()
+    test_transform_bronze_posts()
     test_transform_bronze_comments()
-    # test_transform_bronze_likes()
+    test_transform_bronze_likes()

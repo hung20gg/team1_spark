@@ -42,7 +42,7 @@ def transform_silver_keyword(start_day, end_day):
         .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
         .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
         .config("spark.sql.shuffle.partitions", "16")
-        .config("org.postgresql:postgresql:42.7.4,org.apache.hadoop:hadoop-aws:3.4.1")
+        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
         .getOrCreate()
     )
 
