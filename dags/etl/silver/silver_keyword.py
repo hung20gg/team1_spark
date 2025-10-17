@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession, functions as F
 import random
-from pyspark.sql.types import ArrayType, StringType
+from pyspark.sql.types import ArrayType, StringType, IntegerType
 from pyspark.sql.functions import udf
 import os
 import sys
@@ -19,20 +19,11 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from dags.etl.utils import read_from_s3, save_to_s3
+from dags.etl.utils import read_from_s3, save_to_s3, initialize_spark
 
 def transform_silver_keyword(start_day, end_day):
 
-    spark = (
-        SparkSession.builder
-        .appName("add_fake_sentiment_keywords")
-        .master("local[*]")
-        .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
-        .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-        .config("spark.sql.shuffle.partitions", "16")
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
-        .getOrCreate()
-    )
+    spark = initialize_spark(app_name="transform_silver_keyword")
 
     post_path = f"bronze/{start_day}_{end_day}/posts"
     comment_path = f"bronze/{start_day}_{end_day}/comments"
@@ -43,7 +34,13 @@ def transform_silver_keyword(start_day, end_day):
 
     # ============ ADD FAKE SENTIMENT ============
     # random sentiment (replace later with actual model inference)
-    sentiments = ["positive", "neutral", "negative"]
+    sentiments = [1, 0, -1]
+
+    sentiment_udf = udf(lambda: random.choice(sentiments), IntegerType())
+    logging.info("Registered UDF for random sentiment.")
+
+    posts = posts.withColumn("sentiment", sentiment_udf())
+    comments = comments.withColumn("sentiment", sentiment_udf())
 
     # ============ ADD FAKE KEYWORDS ============
     keywords_list = [

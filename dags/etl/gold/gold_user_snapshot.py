@@ -19,20 +19,11 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from dags.etl.utils import read_from_s3, save_to_s3
+from dags.etl.utils import read_from_s3, save_to_s3, initialize_spark
 
 def create_user_snapshot(start_day, end_day):
 
-    spark = (
-        SparkSession.builder
-        .appName("build_user_snapshot")
-        .master("local[*]")
-        .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
-        .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-        .config("spark.sql.shuffle.partitions", "16")
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
-        .getOrCreate()
-    )
+    spark = initialize_spark(app_name="build_user_snapshot")
 
     post_path = f"silver/{start_day}_{end_day}/posts"
     comment_path = f"silver/{start_day}_{end_day}/comments"
@@ -50,7 +41,7 @@ def create_user_snapshot(start_day, end_day):
     .join(
         posts.groupBy("user_id").agg(
             F.count("*").alias("total_posts_per_user"),
-            F.mean(F.when(F.col("sentiment") == "positive", 1).otherwise(0)).alias("positive_post_ratio"),
+            F.mean(F.when(F.col("sentiment") == 1, 1).otherwise(0)).alias("positive_post_ratio"),
             F.sum(F.when(F.col("created_at") >= F.date_sub(F.current_date(), 30), 1).otherwise(0)).alias("posts_in_last_30_days")
         ), "user_id", "left"
     )
@@ -70,7 +61,7 @@ def create_user_snapshot(start_day, end_day):
     # Received feedback
     comments_received = comments.groupBy("post_id").agg(
         F.count("*").alias("total_comments_received"),
-        F.mean(F.when(F.col("sentiment") == "positive", 1).otherwise(0)).alias("positive_comment_received_ratio")
+        F.mean(F.when(F.col("sentiment") == 1, 1).otherwise(0)).alias("positive_comment_received_ratio")
     )
     likes_received = likes.groupBy("post_id").agg(F.count("*").alias("total_likes_received"))
 
@@ -83,7 +74,8 @@ def create_user_snapshot(start_day, end_day):
                 F.sum("total_likes_received").alias("total_likes_received"),
                 F.avg("total_likes_received").alias("avg_likes_per_post"),
                 F.avg("total_comments_received").alias("avg_comments_per_post"),
-                F.mean("positive_comment_received_ratio").alias("positive_comment_received_ratio")
+                F.mean("positive_comment_received_ratio").alias("positive_comment_received_ratio"),
+                F.count("total_comments_received").alias("total_feedback_count")
             )
     )
 
@@ -127,7 +119,7 @@ def main():
     start_day="2025-01-01"
     end_day="2025-01-31"
     
-    create_daily_summary(start_day, end_day)
+    create_user_snapshot(start_day, end_day)
     
 if __name__ == "__main__":
     main()

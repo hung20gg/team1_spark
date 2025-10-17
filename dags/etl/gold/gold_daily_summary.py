@@ -16,20 +16,11 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from dags.etl.utils import read_from_s3, save_to_s3
+from dags.etl.utils import read_from_s3, save_to_s3, initialize_spark
 
 def create_daily_summary(start_day, end_day):
 
-    spark = (
-        SparkSession.builder
-        .appName("build_daily_summary")
-        .master("local[*]")
-        .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
-        .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-        .config("spark.sql.shuffle.partitions", "16")
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
-        .getOrCreate()
-    )
+    spark = initialize_spark(app_name="build_daily_summary")
 
     post_path = f"silver/{start_day}_{end_day}/posts"
     comment_path = f"silver/{start_day}_{end_day}/comments"
@@ -43,15 +34,15 @@ def create_daily_summary(start_day, end_day):
     posts_daily = posts.groupBy(F.to_date("created_at").alias("report_date")).agg(
     F.countDistinct("post_id").alias("total_posts"),
     F.countDistinct("user_id").alias("active_posters"),
-    F.sum(F.when(F.col("sentiment") == "positive", 1).otherwise(0)).alias("positive_posts_count"),
-    F.sum(F.when(F.col("sentiment") == "negative", 1).otherwise(0)).alias("negative_posts_count")
+    F.sum(F.when(F.col("sentiment") == 1, 1).otherwise(0)).alias("positive_posts_count"),
+    F.sum(F.when(F.col("sentiment") == -1, 1).otherwise(0)).alias("negative_posts_count")
 )
 
     comments_daily = comments.groupBy(F.to_date("created_at").alias("report_date")).agg(
         F.countDistinct("comment_id").alias("total_comments"),
         F.countDistinct("user_id").alias("active_commenters"),
-        F.sum(F.when(F.col("sentiment") == "positive", 1).otherwise(0)).alias("positive_comments_count"),
-        F.sum(F.when(F.col("sentiment") == "negative", 1).otherwise(0)).alias("negative_comments_count")
+        F.sum(F.when(F.col("sentiment") == 1, 1).otherwise(0)).alias("positive_comments_count"),
+        F.sum(F.when(F.col("sentiment") == -1, 1).otherwise(0)).alias("negative_comments_count")
     )
 
     likes_daily = likes.groupBy(F.to_date("created_at").alias("report_date")).agg(

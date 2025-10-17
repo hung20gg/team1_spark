@@ -16,20 +16,11 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from dags.etl.utils import read_from_s3, save_to_s3
+from dags.etl.utils import read_from_s3, save_to_s3, initialize_spark
 
 def create_content_trends(start_day, end_day):
 
-    spark = (
-        SparkSession.builder
-        .appName("build_content_trends")
-        .master("local[*]")
-        .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
-        .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-        .config("spark.sql.shuffle.partitions", "16")
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
-        .getOrCreate()
-    )
+    spark = initialize_spark(app_name="build_content_trends")
 
     post_path = f"silver/{start_day}_{end_day}/posts"
     comment_path = f"silver/{start_day}_{end_day}/comments"
@@ -56,10 +47,6 @@ def create_content_trends(start_day, end_day):
         .withColumn("trending_rank",
                     F.row_number().over(Window.partitionBy("report_date").orderBy(F.desc("total_mentions"))))
     )
-    content_trends.repartition("report_date").write.mode("overwrite") \
-        .partitionBy("report_date") \
-        .option("compression", "snappy") \
-        .parquet("gold_daily_content_trends.parquet")
 
     
     # ============ SAVE BACK TO UPDATED PARQUETS ============
@@ -75,7 +62,7 @@ def main():
     start_day="2025-01-01"
     end_day="2025-01-31"
     
-    create_daily_summary(start_day, end_day)
+    create_content_trends(start_day, end_day)
     
 if __name__ == "__main__":
     main()

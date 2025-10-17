@@ -30,6 +30,8 @@ from dags.etl.gold import (
     create_daily_summary,
 )
 
+from dags.etl.utils import initialize_spark
+from dags.etl.verify import verify_gold_data
 
 
 default_args = {
@@ -41,6 +43,9 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
+
+def _initialize_spark(app_name: str) -> None:
+    initialize_spark(app_name=app_name)
 
 with DAG(
     'social_media_etl',
@@ -58,6 +63,14 @@ with DAG(
         "start_date": "2025-01-01",
         "end_date": "2025-01-31",
     }
+
+    initialize = PythonOperator(
+        task_id='initialize_spark_session',
+        python_callable=_initialize_spark,
+        op_kwargs={
+            "app_name": "social_media_etl_initialization",
+        }
+    )
 
 
     # Bronze -> Silver tasks
@@ -141,11 +154,24 @@ with DAG(
             "end_day": params["end_date"],
         }
     )
+    
+    verify_gold = PythonOperator(
+        task_id='verify_gold_data',
+        python_callable=verify_gold_data,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
+    )
 
-
-    [bronze_users, bronze_posts, bronze_comments, bronze_likes] >> silver_keyword >> [
+    bronze_layers = [bronze_users, bronze_posts, bronze_comments, bronze_likes]
+    gold_layers = [
         gold_content_trends,
         gold_post_performance,
         gold_user_snapshot,
         gold_daily_summary
     ]
+
+
+    # Define task dependencies
+    initialize >> bronze_layers >> silver_keyword >> gold_layers >> verify_gold

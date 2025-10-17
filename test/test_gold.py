@@ -56,7 +56,7 @@ def test_create_daily_summary():
         assert False
         
 if __name__ == "__main__":
-    test_create_content_trends()
-    test_create_post_performance()
-    test_create_user_snapshot()
+    # test_create_content_trends()
+    # test_create_post_performance()
+    # test_create_user_snapshot()
     test_create_daily_summary()

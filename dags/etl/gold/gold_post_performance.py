@@ -17,20 +17,11 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from dags.etl.utils import read_from_s3, save_to_s3
+from dags.etl.utils import read_from_s3, save_to_s3, initialize_spark
 
 def create_post_performance(start_day, end_day):
 
-    spark = (
-        SparkSession.builder
-        .appName("build_post_performance")
-        .master("local[*]")
-        .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
-        .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-        .config("spark.sql.shuffle.partitions", "16")
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
-        .getOrCreate()
-    )
+    spark = initialize_spark(app_name="build_post_performance")
 
     post_path = f"silver/{start_day}_{end_day}/posts"
     comment_path = f"silver/{start_day}_{end_day}/comments"
@@ -81,7 +72,7 @@ def main():
     start_day="2025-01-01"
     end_day="2025-01-31"
     
-    create_daily_summary(start_day, end_day)
+    create_post_performance(start_day, end_day)
     
 if __name__ == "__main__":
     main()

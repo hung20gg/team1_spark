@@ -1,23 +1,16 @@
 from pyspark.sql import SparkSession
 
-from .utils import read_from_s3, save_to_s3
+from .utils import read_from_s3, save_to_s3, initialize_spark
 # ===================== INIT SPARK =====================
 def verify_gold_data(start_day, end_day):
     
-    spark = (
-        SparkSession.builder
-        .appName("silver_to_gold_final")
-        .master("local[*]")
-        .config("spark.driver.memory", "8g")
-        .config("spark.sql.shuffle.partitions", "16")
-        .getOrCreate()
-    )
+    spark = initialize_spark(app_name="verify_gold_data")
 
     # Load and verify outputs
-    gold_daily = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_daily_platform_summary.parquet")
-    gold_user = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_user_snapshot.parquet")
-    gold_post = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_post_performance.parquet")
-    gold_trend = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_daily_content_trends.parquet")
+    gold_daily = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_daily_platform_summary")
+    gold_user = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_user_snapshot")
+    gold_post = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_post_performance")
+    gold_trend = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_daily_content_trends")
 
     print("=== GOLD DAILY PLATFORM SUMMARY ===")
     gold_daily.show(5, truncate=False)
