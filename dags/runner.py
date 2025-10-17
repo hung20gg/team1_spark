@@ -23,6 +23,12 @@ from dags.etl.silver import (
     transform_silver_keyword,
 )
 
+from dags.etl.gold import (
+    create_content_trends,
+    create_post_performance,
+    create_user_snapshot,
+    create_daily_summary,
+)
 
 
 
@@ -100,5 +106,46 @@ with DAG(
         }
     )
 
+    # Silver -> Gold tasks
+    gold_content_trends = PythonOperator(
+        task_id='create_content_trends',
+        python_callable=create_content_trends,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
+    )
 
-    [bronze_users, bronze_posts, bronze_comments, bronze_likes] >> silver_keyword
+    gold_post_performance = PythonOperator(
+        task_id='create_post_performance',
+        python_callable=create_post_performance,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
+    )   
+
+    gold_user_snapshot = PythonOperator(
+        task_id='create_user_snapshot',
+        python_callable=create_user_snapshot,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
+    )
+    gold_daily_summary = PythonOperator(
+        task_id='create_daily_summary',
+        python_callable=create_daily_summary,
+        op_kwargs={
+            "start_day": params["start_date"],
+            "end_day": params["end_date"],
+        }
+    )
+
+
+    [bronze_users, bronze_posts, bronze_comments, bronze_likes] >> silver_keyword >> [
+        gold_content_trends,
+        gold_post_performance,
+        gold_user_snapshot,
+        gold_daily_summary
+    ]
