@@ -2,6 +2,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from datetime import datetime
 from pyspark.sql.types import TimestampType
+from pyspark.sql.functions import lower, regexp_replace, trim
+from pyspark.sql.functions import col, length
 
 import os
 import re
@@ -124,6 +126,21 @@ class DataCleaning:
             return results
         finally:
             df_sample.unpersist()
+
+    def clean_text(self, df, text_col, new_col='text_clean'):
+        df = (
+            df.withColumn(new_col, lower(F.col(text_col)))
+              .withColumn(new_col, regexp_replace(F.col(new_col), r"https?://\S+", ""))
+              .withColumn(new_col, regexp_replace(F.col(new_col), r"[^\p{L}\p{N}\s]+", " "))
+              .withColumn(new_col, trim(regexp_replace(F.col(new_col), r"\s+", " ")))
+        )
+        logging.info(f"Text cleaning applied on column: {text_col}, new column: {new_col}")
+        return df
+    
+    def remove_invalid_rows(self, df):
+        ''' remove rows that has less than 10 characters in content '''
+        logging.info("Removing invalid rows...")   
+        return df.filter(length(col("content")) >= 10)
 
     def check_duplicate(self, df, subset_cols, drop=False):
         df.cache()

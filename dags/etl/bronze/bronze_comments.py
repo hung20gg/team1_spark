@@ -22,6 +22,7 @@ from dags.etl.bronze.data_cleaning import (
 def transform_bronze_comments(start_day, end_day):
     
     data_cleaning = DataCleaning(run_name="bronze_comments")
+    
     df_comment = data_cleaning.table(table_name="comments",
                                     column="comment_id",
                                     start_day=start_day,
@@ -29,7 +30,8 @@ def transform_bronze_comments(start_day, end_day):
                                     lowerBound=1,
                                     upperBound=100000,
                                     numPartitions=8)
-
+    df_comment = data_cleaning.clean_text(df_comment, text_col="content")
+    df_comment = data_cleaning.remove_invalid_rows(df_comment)
     missing_report = data_cleaning.check_missing(df_comment)
     logging.info("Finished checking missing values.")
     print_missing_report(missing_report)

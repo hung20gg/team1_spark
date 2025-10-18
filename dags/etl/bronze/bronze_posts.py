@@ -27,6 +27,8 @@ def transform_bronze_posts(start_day, end_day):
                                     lowerBound=1,
                                     upperBound=100000,
                                     numPartitions=8)
+    df_post = data_cleaning.clean_text(df_post, text_col="content")
+    df_post = data_cleaning.remove_invalid_rows(df_post)
 
     missing_report = data_cleaning.check_missing(df_post)
     logging.info("Finished checking missing values.")
@@ -39,6 +41,7 @@ def transform_bronze_posts(start_day, end_day):
     # data_cleaning.save_to_parquet(df_post, output_path=f"{current_dir}/../../data/bronze/{start_day}_{end_day}/posts", mode="overwrite")
 
     # Save to S3
+    logging.info(df_post.schema)
     data_cleaning.save_to_s3(df_post, bucket="team1spark", output_path=f"bronze/{start_day}_{end_day}/posts", mode="overwrite")
 
 def main():

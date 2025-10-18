@@ -1,11 +1,7 @@
-from collections import deque
-import pandas as pd
-from io import StringIO
 from pyspark.sql.functions import col, lower, regexp_replace, trim
-import os, re
+import os
 from pyspark.sql import SparkSession
 from pyspark.ml.pipeline import PipelineModel
-from pyspark.ml.evaluation import MulticlassClassificationEvaluator, BinaryClassificationEvaluator
 import os
 import sys
 from dotenv import load_dotenv
@@ -33,12 +29,7 @@ class Model_Inference:
         return PipelineModel.load(self.pipeline_path)
 
     def predict(self, df):
-        df = (
-            df.withColumn("text_clean", lower(col("texts")))
-                  .withColumn("text_clean", regexp_replace(col("text_clean"), r"https?://\S+", ""))
-                  .withColumn("text_clean", regexp_replace(col("text_clean"), r"[^\p{L}\p{N}\s]+", " "))
-                  .withColumn("text_clean", trim(regexp_replace(col("text_clean"), r"\s+", " ")))
-        )
+        
         pred_new = self.nb_pipeline.transform(df)
 
         return pred_new
