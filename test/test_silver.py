@@ -35,4 +35,4 @@ def test_transform_silver_sentiment():
         
 if __name__ == "__main__":
     test_transform_silver_keyword()
-    # test_transform_silver_sentiment()
+    test_transform_silver_sentiment()
