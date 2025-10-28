@@ -1,7 +1,7 @@
 from collections import deque
 import pandas as pd
 from io import StringIO
-from pyspark.sql.functions import col, lower, regexp_replace, trim
+from pyspark.sql.functions import col, lower, regexp_replace, trim, when
 import os, re
 from pyspark.sql import SparkSession
 from pyspark.ml.pipeline import PipelineModel
@@ -33,13 +33,16 @@ class Model_Inference:
         return PipelineModel.load(self.pipeline_path)
 
     def predict(self, df):
-        df = (
-            df.withColumn("text_clean", lower(col("texts")))
-                  .withColumn("text_clean", regexp_replace(col("text_clean"), r"https?://\S+", ""))
-                  .withColumn("text_clean", regexp_replace(col("text_clean"), r"[^\p{L}\p{N}\s]+", " "))
-                  .withColumn("text_clean", trim(regexp_replace(col("text_clean"), r"\s+", " ")))
-        )
+        # Handle null values in text columns before tokenization
+        # Replace nulls with empty string to prevent NullPointerException        
+        # col_name = 'text_clean'
+        # df = df.withColumn(col_name, 
+        #                     when(col(col_name).isNull(), "")
+        #                     .otherwise(col(col_name)))
+        
         pred_new = self.nb_pipeline.transform(df)
+
+        print(pred_new.show(5))
 
         return pred_new
 
@@ -49,12 +52,12 @@ def transform_silver_sentiment(start_day, end_day):
     spark = (
         SparkSession.builder
         .appName("Spark_TextML")
-        .master("local[*]")                # Dùng toàn bộ CPU có sẵn
-        .config("spark.driver.memory", "8g")         # 8 GB cho driver (vừa đủ, tránh OOM)
-        .config("spark.executor.memory", "2g")       # 2 GB cho executor (vì local mode, chỉ 1 executor)
-        .config("spark.driver.maxResultSize", "2g")  # Giới hạn kết quả trả về driver
-        .config("spark.sql.shuffle.partitions", "16") # Giảm số shuffle partitions để đỡ overhead
-        .config("spark.default.parallelism", "8")    # Giới hạn song song ở mức hợp lý
+        .master("local[4]")
+        .config("spark.driver.memory", "8g")
+        .config("spark.executor.memory", "4g")
+        .config("spark.driver.maxResultSize", "2g")
+        .config("spark.sql.shuffle.partitions", "4")
+        .config("spark.default.parallelism", "4")
         .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
         .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
         .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
@@ -68,15 +71,28 @@ def transform_silver_sentiment(start_day, end_day):
 
     posts = read_from_s3(spark, bucket="team1spark", path=post_path)
     comments = read_from_s3(spark, bucket="team1spark", path=comment_path)
-
+    
+    # drop existing sentiment if present, run inference, then rename prediction_nb -> sentiment
+    
     posts = inference.predict(posts)
+
+    if "prediction_nb" in posts.columns:
+        posts = posts.withColumnRenamed("prediction_nb", "sentiment")
+    posts = posts.select("post_id", "user_id", "content", "created_at", "keywords", "sentiment")
+
+    
     comments = inference.predict(comments)
+
+    if "prediction_nb" in comments.columns:
+        comments = comments.withColumnRenamed("prediction_nb", "sentiment")
+    comments = comments.select("post_id", "comment_id", "user_id", "content", "created_at", "keywords", "sentiment")
 
     update_post_dir = f"silver/{start_day}_{end_day}/posts"
     update_comment_dir = f"silver/{start_day}_{end_day}/comments"
 
     save_to_s3(posts, bucket="team1spark", output_path=update_post_dir, mode="overwrite")
     save_to_s3(comments, bucket="team1spark", output_path=update_comment_dir, mode="overwrite")
+
 
 
 def main():

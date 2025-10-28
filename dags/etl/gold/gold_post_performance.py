@@ -25,8 +25,8 @@ def create_post_performance(start_day, end_day):
 
     post_path = f"silver/{start_day}_{end_day}/posts"
     comment_path = f"silver/{start_day}_{end_day}/comments"
-    likes_path = f"bronze/{start_day}_{end_day}/likes"
-    users_path = f"bronze/{start_day}_{end_day}/users"
+    likes_path = f"silver/{start_day}_{end_day}/likes"
+    users_path = f"silver/{start_day}_{end_day}/users"
 
     # ============ LOAD BRONZE AND SILVER PARQUETS ============
     posts = read_from_s3(spark, bucket="team1spark", path=post_path)
@@ -45,9 +45,9 @@ def create_post_performance(start_day, end_day):
         .join(broadcast(likes.groupBy("post_id").agg(F.count("*").alias("total_likes"))), "post_id", "left")
         .join(broadcast(comments.groupBy("post_id").agg(F.count("*").alias("total_comments"))), "post_id", "left")
         .withColumn("time_to_first_like_minutes",
-                    F.round((F.unix_timestamp("first_like_time") - F.unix_timestamp("created_at")) / 60))
+                    F.round((F.unix_timestamp("first_like_time", "yyyy-MM-dd'T'HH:mm:ss") - F.unix_timestamp("created_at", "yyyy-MM-dd'T'HH:mm:ss")) / 60))
         .withColumn("time_to_first_comment_minutes",
-                    F.round((F.unix_timestamp("first_comment_time") - F.unix_timestamp("created_at")) / 60))
+                    F.round((F.unix_timestamp("first_comment_time", "yyyy-MM-dd'T'HH:mm:ss") - F.unix_timestamp("created_at", "yyyy-MM-dd'T'HH:mm:ss")) / 60))
         .select(
             "post_id",
             F.to_date("created_at").alias("created_date"),

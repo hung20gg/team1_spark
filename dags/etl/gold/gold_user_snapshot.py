@@ -27,8 +27,8 @@ def create_user_snapshot(start_day, end_day):
 
     post_path = f"silver/{start_day}_{end_day}/posts"
     comment_path = f"silver/{start_day}_{end_day}/comments"
-    likes_path = f"bronze/{start_day}_{end_day}/likes"
-    users_path = f"bronze/{start_day}_{end_day}/users"
+    likes_path = f"silver/{start_day}_{end_day}/likes"
+    users_path = f"silver/{start_day}_{end_day}/users"
 
     # ============ LOAD BRONZE AND SILVER PARQUETS ============
     posts = read_from_s3(spark, bucket="team1spark", path=post_path)

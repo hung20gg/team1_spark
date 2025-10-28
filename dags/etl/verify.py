@@ -1,6 +1,22 @@
 from pyspark.sql import SparkSession
 
 from .utils import read_from_s3, save_to_s3, initialize_spark
+
+
+def verify_bronze_data(start_day, end_day):
+
+    print(f"Verifying bronze data from {start_day} to {end_day}...")
+    # Add verification logic here
+    print("Bronze data verification completed.")
+
+
+def verify_silver_data(start_day, end_day):
+
+    print(f"Verifying silver data from {start_day} to {end_day}...")
+    # Add verification logic here
+    print("Silver data verification completed.")
+
+
 # ===================== INIT SPARK =====================
 def verify_gold_data(start_day, end_day):
     

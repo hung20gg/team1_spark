@@ -24,7 +24,7 @@ def create_daily_summary(start_day, end_day):
 
     post_path = f"silver/{start_day}_{end_day}/posts"
     comment_path = f"silver/{start_day}_{end_day}/comments"
-    likes_path = f"bronze/{start_day}_{end_day}/likes"
+    likes_path = f"silver/{start_day}_{end_day}/likes"
 
     # ============ LOAD BRONZE AND SILVER PARQUETS ============
     posts = read_from_s3(spark, bucket="team1spark", path=post_path)
@@ -35,14 +35,14 @@ def create_daily_summary(start_day, end_day):
     F.countDistinct("post_id").alias("total_posts"),
     F.countDistinct("user_id").alias("active_posters"),
     F.sum(F.when(F.col("sentiment") == 1, 1).otherwise(0)).alias("positive_posts_count"),
-    F.sum(F.when(F.col("sentiment") == -1, 1).otherwise(0)).alias("negative_posts_count")
+    F.sum(F.when(F.col("sentiment") == 0, 1).otherwise(0)).alias("negative_posts_count")
 )
 
     comments_daily = comments.groupBy(F.to_date("created_at").alias("report_date")).agg(
         F.countDistinct("comment_id").alias("total_comments"),
         F.countDistinct("user_id").alias("active_commenters"),
         F.sum(F.when(F.col("sentiment") == 1, 1).otherwise(0)).alias("positive_comments_count"),
-        F.sum(F.when(F.col("sentiment") == -1, 1).otherwise(0)).alias("negative_comments_count")
+        F.sum(F.when(F.col("sentiment") == 0, 1).otherwise(0)).alias("negative_comments_count")
     )
 
     likes_daily = likes.groupBy(F.to_date("created_at").alias("report_date")).agg(

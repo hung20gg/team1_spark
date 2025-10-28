@@ -11,10 +11,10 @@ def initialize_spark(app_name: str) -> SparkSession:
     spark = (
         SparkSession.builder
         .appName(app_name)
-        .master("local[*]")
+        .master("local[4]")
         .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
         .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-        .config("spark.driver.memory", "6g")
+        .config("spark.driver.memory", "4g")
         .config("spark.sql.shuffle.partitions", "16")
 
         .config("spark.jars.packages", "org.postgresql:postgresql:42.7.4,org.apache.hadoop:hadoop-aws:3.4.1")
