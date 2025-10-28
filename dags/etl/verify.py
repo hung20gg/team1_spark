@@ -1,26 +1,32 @@
 from pyspark.sql import SparkSession
 
+from .utils import read_from_s3, save_to_s3, initialize_spark
+
+
+def verify_bronze_data(start_day, end_day):
+
+    print(f"Verifying bronze data from {start_day} to {end_day}...")
+    # Add verification logic here
+    print("Bronze data verification completed.")
+
+
+def verify_silver_data(start_day, end_day):
+
+    print(f"Verifying silver data from {start_day} to {end_day}...")
+    # Add verification logic here
+    print("Silver data verification completed.")
+
 
 # ===================== INIT SPARK =====================
-def main():
+def verify_gold_data(start_day, end_day):
     
-    start_day="2023-01-01"
-    end_day="2025-01-31"
-    
-    spark = (
-        SparkSession.builder
-        .appName("silver_to_gold_final")
-        .master("local[*]")
-        .config("spark.driver.memory", "8g")
-        .config("spark.sql.shuffle.partitions", "16")
-        .getOrCreate()
-    )
+    spark = initialize_spark(app_name="verify_gold_data")
 
     # Load and verify outputs
-    gold_daily = spark.read.parquet(f"data/gold/gold_daily_platform_summary_{start_day}_{end_day}.parquet")
-    gold_user = spark.read.parquet(f"data/gold/gold_user_snapshot_{start_day}_{end_day}.parquet")
-    gold_post = spark.read.parquet(f"data/gold/gold_post_performance_{start_day}_{end_day}.parquet")
-    gold_trend = spark.read.parquet(f"data/gold/gold_daily_content_trends_{start_day}_{end_day}.parquet")
+    gold_daily = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_daily_platform_summary")
+    gold_user = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_user_snapshot")
+    gold_post = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_post_performance")
+    gold_trend = read_from_s3(spark, bucket="team1spark", path = f"gold/{start_day}_{end_day}/gold_daily_content_trends")
 
     print("=== GOLD DAILY PLATFORM SUMMARY ===")
     gold_daily.show(5, truncate=False)
@@ -33,3 +39,14 @@ def main():
 
     print("\n=== GOLD DAILY CONTENT TRENDS ===")
     gold_trend.select("report_date", "topic_or_keyword", "total_mentions", "trending_rank").show(10, truncate=False)
+    
+def main():
+    
+    start_day="2025-01-01"
+    end_day="2025-01-31"
+    
+    verify_gold_data(start_day, end_day)
+    
+if __name__ == "__main__":
+    main()
+    

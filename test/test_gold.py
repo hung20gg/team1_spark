@@ -5,55 +5,58 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.append(os.path.join(current_dir, ".."))
 
-from dags.etl.silver import (
-    transform_comments,
-    transform_likes,
-    transform_posts,
-    transform_users
+from dags.etl.gold import (
+    create_content_trends,
+    create_post_performance,
+    create_user_snapshot,
+    create_daily_summary,
 )
 
 START_DATE = "2025-01-01"
 END_DATE = "2025-01-31"
 
 
-def test_transform_bronze_users():
+def test_create_content_trends():
     
     try:
-        transform_users(START_DATE, END_DATE)
+        create_content_trends(START_DATE, END_DATE)
+        assert True
+    except Exception as e:
+        print(f"Error: {e}")
+        assert False
+
+
+def test_create_post_performance():
+
+    try:
+        create_post_performance(START_DATE, END_DATE)
+        assert True
+    except Exception as e:
+        print(f"Error: {e}")
+        assert False
+
+
+def test_create_user_snapshot():
+
+    try:
+        create_user_snapshot(START_DATE, END_DATE)
+        assert True
+    except Exception as e:
+        print(f"Error: {e}")
+        assert False
+
+
+def test_create_daily_summary():
+
+    try:
+        create_daily_summary(START_DATE, END_DATE)
         assert True
     except Exception as e:
         print(f"Error: {e}")
         assert False
         
-def test_transform_bronze_posts():
-    
-    try:
-        transform_posts(START_DATE, END_DATE)
-        assert True
-    except Exception as e:
-        print(f"Error: {e}")
-        assert False
-        
-def test_transform_bronze_comments():
-    
-    try:
-        transform_comments(START_DATE, END_DATE)
-        assert True
-    except Exception as e:
-        print(f"Error: {e}")
-        assert False
-
-def test_transform_bronze_likes():
-
-    try:
-        transform_likes(START_DATE, END_DATE)
-        assert True
-    except Exception as e:
-        print(f"Error: {e}")
-        assert False
-
 if __name__ == "__main__":
-    test_transform_bronze_users()
-    test_transform_bronze_posts()
-    test_transform_bronze_comments()
-    test_transform_bronze_likes()
+    # test_create_content_trends()
+    test_create_post_performance()
+    # test_create_user_snapshot()
+    # test_create_daily_summary()

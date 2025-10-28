@@ -1,13 +1,17 @@
 from pyspark.sql import SparkSession, functions as F
 import random
-from pyspark.sql.types import ArrayType, StringType
+from pyspark.sql.types import ArrayType, StringType, IntegerType
+from pyspark.sql.functions import lower, regexp_replace, trim
 from pyspark.sql.functions import udf
 import os
+import sys
+
 from dotenv import load_dotenv
 load_dotenv()
 # ============ INIT SPARK ============
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(current_dir, '..', '..', '..'))
 
 import logging
 logging.basicConfig(
@@ -16,38 +20,30 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-def read_from_s3(spark, bucket, path):
-    s3_path = f"s3a://{bucket}/{path}"
-    df = spark.read.parquet(s3_path)
-    return df
+from dags.etl.utils import read_from_s3, save_to_s3, initialize_spark
+from pyspark.sql.types import StringType
 
-def save_to_s3(df, bucket, output_path, mode="overwrite"):
-    s3_path = f"s3a://{bucket}/{output_path}"
-    
-    total_rows = df.count()
-    target_rows_per_file = 100_000
-    
-    num_partitions = max(1, total_rows // target_rows_per_file)
-    df = df.repartition(num_partitions)
-    
-    df.write.mode(mode).parquet(s3_path)
-    logging.info(f"Saved dataframe to {s3_path} with mode={mode}")
+def clean_text(df, text_col, new_col='text_clean'):
+
+    # cast to string and replace null or literal 'nan' with empty string
+    text_cast = F.col(text_col).cast(StringType())
+    safe_text = F.when(text_cast.isNull() | (F.lower(text_cast) == 'nan'), F.lit('')).otherwise(text_cast)
+
+    df = (
+        df.withColumn(new_col, lower(safe_text))
+          .withColumn(new_col, regexp_replace(F.col(new_col), r"https?://\S+", ""))
+          .withColumn(new_col, regexp_replace(F.col(new_col), r"[^\p{L}\p{N}\s]+", " "))
+          .withColumn(new_col, trim(regexp_replace(F.col(new_col), r"\s+", " ")))
+    )
+    logging.info(f"Text cleaning applied on column: {text_col}, new column: {new_col}")
+    return df
 
 def transform_silver_keyword(start_day, end_day):
 
-    spark = (
-        SparkSession.builder
-        .appName("add_fake_sentiment_keywords")
-        .master("local[*]")
-        .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
-        .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-        .config("spark.sql.shuffle.partitions", "16")
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
-        .getOrCreate()
-    )
+    spark = initialize_spark(app_name="transform_silver_keyword")
 
-    post_path = f"bronze/{start_day}_{end_day}/posts"
-    comment_path = f"bronze/{start_day}_{end_day}/comments"
+    post_path = f"silver/{start_day}_{end_day}/posts"
+    comment_path = f"silver/{start_day}_{end_day}/comments"
 
     # ============ LOAD SILVER PARQUETS ============
     posts = read_from_s3(spark, bucket="team1spark", path=post_path)
@@ -55,21 +51,13 @@ def transform_silver_keyword(start_day, end_day):
 
     # ============ ADD FAKE SENTIMENT ============
     # random sentiment (replace later with actual model inference)
-    sentiments = ["positive", "neutral", "negative"]
+    # sentiments = [1, 0, -1]
 
-    posts = posts.withColumn(
-        "sentiment",
-        F.when(F.rand() < 0.33, F.lit("positive"))
-        .when(F.rand() < 0.66, F.lit("neutral"))
-        .otherwise(F.lit("negative"))
-    )
+    # sentiment_udf = udf(lambda: random.choice(sentiments), IntegerType())
+    # logging.info("Registered UDF for random sentiment.")
 
-    comments = comments.withColumn(
-        "sentiment",
-        F.when(F.rand() < 0.33, F.lit("positive"))
-        .when(F.rand() < 0.66, F.lit("neutral"))
-        .otherwise(F.lit("negative"))
-    )
+    # posts = posts.withColumn("sentiment", sentiment_udf())
+    # comments = comments.withColumn("sentiment", sentiment_udf())
 
     # ============ ADD FAKE KEYWORDS ============
     keywords_list = [
@@ -88,6 +76,9 @@ def transform_silver_keyword(start_day, end_day):
 
     posts = posts.withColumn("keywords", rand_keywords_udf())
     comments = comments.withColumn("keywords", rand_keywords_udf())
+
+    posts = clean_text(posts, text_col="content", new_col="text_clean")
+    comments = clean_text(comments, text_col="content", new_col="text_clean")
 
     # ============ SAVE BACK TO UPDATED PARQUETS ============
     update_post_dir = f"silver/{start_day}_{end_day}/posts"

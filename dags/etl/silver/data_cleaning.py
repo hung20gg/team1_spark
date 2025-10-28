@@ -35,20 +35,19 @@ class DataCleaning:
     def __init__(self, run_name="bronze_etl"):
         self.run_name = run_name
         self.spark = self.get_spark_session()
-        self.jdbc_url, self.db_properties = self.get_db()
 
 
     def get_spark_session(self):
         spark = (
             SparkSession.builder
             .appName(self.run_name)
-            .master("local[*]")
+            .master("local[2]")
             .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
             .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-            .config("spark.driver.memory", "8g")
-            .config("spark.driver.maxResultSize", "2g")
-            .config("spark.sql.shuffle.partitions", "32")
-            .config("spark.jars.packages", "org.postgresql:postgresql:42.7.4,org.apache.hadoop:hadoop-aws:3.4.1")
+            .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.4.1")
+            .config("spark.driver.memory", "2g")
+            # .config("spark.driver.maxResultSize", "2g")
+            # .config("spark.sql.shuffle.partitions", "32")
             .getOrCreate()
         )
         
@@ -59,48 +58,10 @@ class DataCleaning:
 
         return spark
 
-    def get_db(self):
-        db_connector = {
-            "host": os.getenv("POSTGRES_HOST"),
-            "port": os.getenv("POSTGRES_PORT"),
-            "dbname": os.getenv("POSTGRES_DB"),
-            "user": os.getenv("POSTGRES_USER"),
-            "password": os.getenv("POSTGRES_PASSWORD")
-        }
-        
-        db_properties = {
-            "user": db_connector["user"],
-            "password": db_connector["password"],
-            "driver": "org.postgresql.Driver"
-        }
-        jdbc_url = f"jdbc:postgresql://{db_connector['host']}:{db_connector['port']}/{db_connector['dbname']}"
-        return jdbc_url, db_properties
-
-    # ===================== EXTRACT FUNCTIONS =====================
-
-    def table(self, table_name, column, start_day=None, end_day=None, lowerBound=1, upperBound=100000, numPartitions=8):
-        query = table_name
-        if start_day and end_day:
-            try:
-                temp_df = self.spark.read.jdbc(url=self.jdbc_url, table=table_name, properties=self.db_properties)
-                if 'created_at' in temp_df.columns:
-                    query = f"(SELECT * FROM {table_name} WHERE created_at BETWEEN '{start_day}' AND '{end_day}') AS t"
-                else:
-                    logging.warning(f"Warning: 'created_at' column not found in table '{table_name}'. Skipping date filter.")
-            except Exception as e:
-                logging.error(f"Error checking table schema for '{table_name}': {e}")
-                logging.info("Skipping date filter.")
-
-
-        return self.spark.read.jdbc(
-            url=self.jdbc_url,
-            table=query,
-            column=column,
-            lowerBound=lowerBound,
-            upperBound=upperBound,
-            numPartitions=numPartitions,
-            properties=self.db_properties
-        )
+    def read_from_s3(self, bucket: str, path: str):
+        s3_path = f"s3a://{bucket}/{path}"
+        df = self.spark.read.parquet(s3_path)
+        return df
 
     # ===================== TRANSFORM FUNCTIONS =====================
 
